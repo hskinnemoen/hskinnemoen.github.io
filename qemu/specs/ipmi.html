@@ -1,0 +1,183 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>IPMI device emulation &#8212; QEMU  documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="QEMU TPM Device" href="tpm.html" />
+    <link rel="prev" title="QEMU and ACPI BIOS Generic Event Device interface" href="acpi_hw_reduced_hotplug.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="ipmi-device-emulation">
+<h1>IPMI device emulation<a class="headerlink" href="#ipmi-device-emulation" title="Permalink to this headline">¶</a></h1>
+<p>QEMU supports emulating many types of machines. This includes machines that may
+serve as the main processor in an IPMI system, e.g. x86 or POWER server
+processors, as well as machines emulating ARM-based Baseband Management
+Controllers (BMCs), e.g. AST2xxx or NPCM7xxx systems-on-chip.</p>
+<div class="section" id="main-processor-emulation">
+<h2>Main processor emulation<a class="headerlink" href="#main-processor-emulation" title="Permalink to this headline">¶</a></h2>
+<p>A server platform may include one of the following system interfaces for
+communicating with a BMC:</p>
+<ul class="simple">
+<li><p>A Keyboard Controller Style (KCS) Interface, accessible via ISA
+(<code class="docutils literal notranslate"><span class="pre">isa-ipmi-kcs</span></code>) or PCI (<code class="docutils literal notranslate"><span class="pre">pci-ipmi-kcs</span></code>).</p></li>
+<li><p>A Block Transfer (BT) Interface, accessible via ISA (<code class="docutils literal notranslate"><span class="pre">isa-ipmi-bt</span></code>) or PCI
+(<code class="docutils literal notranslate"><span class="pre">pci-ipmi-bt</span></code>).</p></li>
+<li><p>An SMBus System Interface (SSIF; <code class="docutils literal notranslate"><span class="pre">smbus-ipmi</span></code>).</p></li>
+</ul>
+<p>These interfaces can all be emulated by QEMU. To emulate the behavior of the
+BMC, the messaging interface emulators use one of the following backends:</p>
+<ul class="simple">
+<li><p>A BMC simulator running within the QEMU process (<code class="docutils literal notranslate"><span class="pre">ipmi-bmc-sim</span></code>).</p></li>
+<li><p>An external BMC simulator or emulator, connected over a chardev
+(<code class="docutils literal notranslate"><span class="pre">ipmi-bmc-extern</span></code>). <a class="reference external" href="https://github.com/wrouesnel/openipmi/blob/master/lanserv/README.ipmi_sim">ipmi_sim</a>
+from OpenIPMI is an example external BMC emulator.</p></li>
+</ul>
+<p>The following diagram shows how these entities relate to each other.</p>
+<div><img height="280" src="_images/blockdiag-39c8b691bb9b1daeb12541543b8438b99b34bf4f.png" width="640" /></div><div class="section" id="ipmi-system-interfaces">
+<h3>IPMI System Interfaces<a class="headerlink" href="#ipmi-system-interfaces" title="Permalink to this headline">¶</a></h3>
+<p>The system software running on the main processor may use a <em>system interface</em>
+to communicate with the BMC. These are hardware devices attached to an ISA, PCI
+or i2c bus, and in QEMU, they all need to implement <code class="docutils literal notranslate"><span class="pre">ipmi-interface</span></code>.
+This allows a BMC implementation to interact with the system interface in a
+standard way.</p>
+</div>
+<div class="section" id="ipmi-bmc">
+<h3>IPMI BMC<a class="headerlink" href="#ipmi-bmc" title="Permalink to this headline">¶</a></h3>
+<p>The system interface devices delegate emulation of BMC behavior to a BMC
+device, that is a subclass of <code class="docutils literal notranslate"><span class="pre">ipmi-bmc</span></code>. This type of device is called
+a BMC because that’s what it looks like to the main processor guest software.</p>
+<p>The BMC behavior may be simulated within the qemu process (<code class="docutils literal notranslate"><span class="pre">ipmi-bmc-sim</span></code>) or
+further delegated to an external emulator, or a real BMC. The
+<code class="docutils literal notranslate"><span class="pre">ipmi-bmc-extern</span></code> device has a required <code class="docutils literal notranslate"><span class="pre">chardev</span></code> property which specifies
+the communications channel to the external BMC.</p>
+</div>
+</div>
+<div class="section" id="baseband-management-controller-bmc-emulation">
+<h2>Baseband Management Controller (BMC) emulation<a class="headerlink" href="#baseband-management-controller-bmc-emulation" title="Permalink to this headline">¶</a></h2>
+<p>This section is about emulation of IPMI-related devices in a System-on-Chip
+(SoC) used as a Baseband Management Controller. This is not to be confused with
+emulating the BMC device as seen by the main processor.</p>
+<p>SoCs that are designed to be used as a BMC often have dedicated hardware that
+allows them to be connected to one or more of the IPMI System Interfaces. The
+BMC-side hardware interface is not standardized, so each type of SoC may need
+its own device implementation in QEMU, for example:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">aspeed-ipmi-ibt</span></code> for emulating the Aspeed iBT peripheral.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">npcm7xx-ipmi-kcs</span></code> for emulating the Nuvoton NPCM7xx Host-to-BMC Keyboard
+Controller Style (KCS) channels.</p></li>
+</ul>
+<div><img height="280" src="_images/blockdiag-00e5b8c73fdad3b3a90b522097041ee251469931.png" width="640" /></div><div class="section" id="ipmi-responder">
+<h3>IPMI Responder<a class="headerlink" href="#ipmi-responder" title="Permalink to this headline">¶</a></h3>
+<p>The software running on the BMC needs to intercept reads and writes to the
+system interface registers on the main processor. This requires special
+hardware that needs to be emulated by QEMU. We’ll call these device <em>IPMI
+responders</em>.</p>
+<p>All <em>IPMI responder</em> devices should implement the <code class="docutils literal notranslate"><span class="pre">ipmi-responder</span></code> interface
+to allow an IPMI Host implementation to interact with them in a standard way.</p>
+</div>
+<div class="section" id="ipmi-host">
+<h3>IPMI Host<a class="headerlink" href="#ipmi-host" title="Permalink to this headline">¶</a></h3>
+<p>Mirroring the main processor emulation, the responder devices delegate
+emulation of host behavior to a Host device that is a subclass of
+<code class="docutils literal notranslate"><span class="pre">ipmi-host</span></code>. This type of device is called a Host because that’s what it
+looks like to the BMC guest software.</p>
+<p>The host behavior may be further delegated to an external emulator (e.g.
+another QEMU VM) through the <code class="docutils literal notranslate"><span class="pre">ipmi-host-extern</span></code> host implementation. This
+device has a required <code class="docutils literal notranslate"><span class="pre">chardev</span></code> property which specifies the communications
+channel to the external host. The wire format is the same as for
+<code class="docutils literal notranslate"><span class="pre">ipmi-bmc-extern</span></code>.</p>
+</div>
+</div>
+<div class="section" id="wire-protocol">
+<h2>Wire protocol<a class="headerlink" href="#wire-protocol" title="Permalink to this headline">¶</a></h2>
+<p>The wire protocol used between <code class="docutils literal notranslate"><span class="pre">ipmi-bmc-extern</span></code> and the external BMC
+emulator is defined by <a class="reference external" href="https://github.com/wrouesnel/openipmi/blob/master/lanserv/README.vm">README.vm</a> from
+the OpenIPMI project.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">QEMU</a></h1>
+
+
+
+<p class="blurb">System Emulation Guest Hardware Specifications</p>
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="ppc-xive.html">POWER9 XIVE interrupt controller</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ppc-spapr-xive.html">XIVE for sPAPR (pseries machines)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ppc-spapr-numa.html">NUMA mechanics for sPAPR (pseries machines)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ppc-spapr-numa.html#how-the-pseries-linux-guest-calculates-numa-distances">How the pseries Linux guest calculates NUMA distances</a></li>
+<li class="toctree-l1"><a class="reference internal" href="acpi_hw_reduced_hotplug.html">QEMU and ACPI BIOS Generic Event Device interface</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">IPMI device emulation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#main-processor-emulation">Main processor emulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#baseband-management-controller-bmc-emulation">Baseband Management Controller (BMC) emulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#wire-protocol">Wire protocol</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tpm.html">QEMU TPM Device</a></li>
+<li class="toctree-l1"><a class="reference internal" href="acpi_hest_ghes.html">APEI tables generating and CPER record</a></li>
+</ul>
+
+
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, The QEMU Project Developers.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.4.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.8</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
